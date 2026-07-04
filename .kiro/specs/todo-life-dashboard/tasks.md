@@ -70,7 +70,7 @@ This plan implements the To-do List Life Dashboard — a single-page vanilla JS/
   - Wire Save button and Enter keypress to `editTask(id, input.value)`; wire Cancel button and Escape keypress to `_render()` without saving.
   - **Acceptance criteria**: Editing a task updates its text and persists it; saving whitespace restores original text; Cancel discards changes; Escape discards changes.
 
-- [-] 10. Implement TodoList — Complete and Delete tasks
+- [ ] 10. Implement TodoList — Complete and Delete tasks
   - Implement `TodoList.toggleTask(id)`: find task by id, flip `completed`, call `_render()` and `_persist()`.
   - Implement `TodoList.deleteTask(id)`: filter out the task with that id, call `_render()` and `_persist()`.
   - In `_render()`, wire checkbox change to `toggleTask(id)` and Delete button click to `deleteTask(id)`.

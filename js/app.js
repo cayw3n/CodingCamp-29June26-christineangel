@@ -563,6 +563,16 @@ var TodoList = (function () {
         li.appendChild(span);
         li.appendChild(actions);
 
+        // Wire checkbox change → toggleTask
+        checkbox.addEventListener('change', function () {
+          toggleTask(task.id);
+        });
+
+        // Wire Delete button → deleteTask
+        deleteBtn.addEventListener('click', function () {
+          deleteTask(task.id);
+        });
+
         // Wire Edit button → switch item into edit mode
         editBtn.addEventListener('click', function () {
           _enterEditMode(li, checkbox, task);
@@ -777,6 +787,38 @@ var TodoList = (function () {
         }
       });
     }
+
+    // Ensure a final persist when the user navigates away
+    window.addEventListener('beforeunload', function () {
+      _persist();
+    });
+  }
+
+  /**
+   * toggleTask(id) — Task 10
+   * Finds the task with the given id, flips its completed flag,
+   * then calls _render() and _persist().
+   */
+  function toggleTask(id) {
+    for (var i = 0; i < tasks.length; i++) {
+      if (tasks[i].id === id) {
+        tasks[i].completed = !tasks[i].completed;
+        break;
+      }
+    }
+    _render();
+    _persist();
+  }
+
+  /**
+   * deleteTask(id) — Task 10
+   * Removes the task with the given id from the array,
+   * then calls _render() and _persist().
+   */
+  function deleteTask(id) {
+    tasks = tasks.filter(function (t) { return t.id !== id; });
+    _render();
+    _persist();
   }
 
   return {
@@ -786,9 +828,290 @@ var TodoList = (function () {
     _render:       _render,
     addTask:       addTask,
     editTask:      editTask,
+    toggleTask:    toggleTask,
+    deleteTask:    deleteTask,
     // Expose tasks array accessor for tests and Tasks 8–10
     _getTasks:     function () { return tasks; },
     _setTasks:     function (t) { tasks = t; }
+  };
+})();
+
+/* --------------------------------------------------------------------------
+   QuickLinks
+   Manages bookmark-style quick links with localStorage persistence.
+
+   Link schema:
+     { id: string, label: string, url: string }
+
+   localStorage key: "todo-life-dashboard:links"
+
+   Public API (Tasks 11–12):
+     QuickLinks.init()
+     QuickLinks._validateUrl(url)
+     QuickLinks._persist()
+     QuickLinks._render()
+     QuickLinks.addLink(label, url)   — Task 12
+     QuickLinks.openLink(url)         — Task 12
+     QuickLinks.deleteLink(id)        — Task 12
+   -------------------------------------------------------------------------- */
+var QuickLinks = (function () {
+
+  var STORAGE_KEY = 'todo-life-dashboard:links';
+
+  // In-memory links array — array of Link objects
+  var links = [];
+
+  /**
+   * _validateUrl(url) → boolean
+   * Returns true if url starts with "http://" or "https://" AND is parseable
+   * by the URL constructor; returns false otherwise.
+   */
+  function _validateUrl(url) {
+    if (typeof url !== 'string') return false;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) return false;
+    try {
+      new URL(url);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * _persist() → { ok: true } | { ok: false, error }
+   * Saves the current links array to localStorage via StorageManager.
+   * The error banner is shown by StorageManager.save() on failure.
+   */
+  function _persist() {
+    return StorageManager.save(STORAGE_KEY, links);
+  }
+
+  /**
+   * _render()
+   * Clears and rebuilds #links-grid from the links array.
+   *
+   * Each link renders as a container div with:
+   *   - a <button class="link-btn"> with the link label (click → openLink)
+   *   - a <button class="btn btn-sm btn-danger link-delete-btn"> "Delete" (click → deleteLink)
+   *
+   * When links is empty, shows #links-empty (the empty-state paragraph).
+   */
+  function _render() {
+    var grid      = document.getElementById('links-grid');
+    var emptyMsg  = document.getElementById('links-empty');
+    if (!grid) return;
+
+    // Clear existing rendered links (everything except the empty-state paragraph)
+    var children = Array.prototype.slice.call(grid.children);
+    for (var i = 0; i < children.length; i++) {
+      if (children[i].id !== 'links-empty') {
+        grid.removeChild(children[i]);
+      }
+    }
+
+    if (links.length === 0) {
+      if (emptyMsg) emptyMsg.removeAttribute('hidden');
+      return;
+    }
+
+    // Hide empty-state message when there are links
+    if (emptyMsg) emptyMsg.setAttribute('hidden', '');
+
+    for (var j = 0; j < links.length; j++) {
+      (function (link) {
+        var container = document.createElement('div');
+        container.className = 'link-item';
+        container.setAttribute('data-id', link.id);
+
+        // Link button — clicking opens the URL
+        var linkBtn = document.createElement('button');
+        linkBtn.type = 'button';
+        linkBtn.className = 'btn link-btn';
+        linkBtn.textContent = link.label;
+        linkBtn.addEventListener('click', function () {
+          openLink(link.url);
+        });
+
+        // Delete button — clicking removes this link
+        var deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'btn btn-sm btn-danger link-delete-btn';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.setAttribute('aria-label', 'Delete link ' + link.label);
+        deleteBtn.addEventListener('click', function () {
+          deleteLink(link.id);
+        });
+
+        container.appendChild(linkBtn);
+        container.appendChild(deleteBtn);
+        grid.appendChild(container);
+      })(links[j]);
+    }
+  }
+
+  /**
+   * addLink(label, url) — Task 12
+   * Validates label (non-empty after trim) and url (_validateUrl).
+   * On failure: highlights the offending field(s) with aria-invalid and
+   * the CSS class "input-error", shows #links-error, and returns early.
+   * On success: creates a new Link object, pushes to links, calls _render()
+   * and _persist(), and clears both inputs.
+   */
+  function addLink(label, url) {
+    var labelInput = document.getElementById('link-label-input');
+    var urlInput   = document.getElementById('link-url-input');
+    var errorMsg   = document.getElementById('links-error');
+
+    var trimmedLabel = (label == null ? '' : String(label)).trim();
+    var labelOk      = trimmedLabel.length > 0;
+    var urlOk        = _validateUrl(url);
+
+    if (!labelOk || !urlOk) {
+      // Highlight offending fields
+      if (labelInput) {
+        if (!labelOk) {
+          labelInput.setAttribute('aria-invalid', 'true');
+          labelInput.classList.add('input-error');
+        } else {
+          labelInput.removeAttribute('aria-invalid');
+          labelInput.classList.remove('input-error');
+        }
+      }
+      if (urlInput) {
+        if (!urlOk) {
+          urlInput.setAttribute('aria-invalid', 'true');
+          urlInput.classList.add('input-error');
+        } else {
+          urlInput.removeAttribute('aria-invalid');
+          urlInput.classList.remove('input-error');
+        }
+      }
+      if (errorMsg) {
+        errorMsg.removeAttribute('hidden');
+      }
+      return;
+    }
+
+    // Clear any previous error state
+    if (labelInput) {
+      labelInput.removeAttribute('aria-invalid');
+      labelInput.classList.remove('input-error');
+    }
+    if (urlInput) {
+      urlInput.removeAttribute('aria-invalid');
+      urlInput.classList.remove('input-error');
+    }
+    if (errorMsg) {
+      errorMsg.setAttribute('hidden', '');
+    }
+
+    // Generate a unique id
+    var id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : Date.now().toString();
+
+    var newLink = { id: id, label: trimmedLabel, url: url };
+    links.push(newLink);
+
+    _render();
+    _persist();
+
+    // Clear inputs
+    if (labelInput) labelInput.value = '';
+    if (urlInput)   urlInput.value   = '';
+  }
+
+  /**
+   * openLink(url) — Task 12
+   * Validates the url via _validateUrl. If invalid, shows the error banner
+   * and returns without opening a tab. If valid, calls window.open(url, '_blank').
+   */
+  function openLink(url) {
+    if (!_validateUrl(url)) {
+      showErrorBanner('Cannot open link: invalid or unsafe URL.');
+      return;
+    }
+    window.open(url, '_blank');
+  }
+
+  /**
+   * deleteLink(id) — Task 12
+   * Filters out the link with the given id, then calls _render() and _persist().
+   */
+  function deleteLink(id) {
+    links = links.filter(function (link) { return link.id !== id; });
+    _render();
+    _persist();
+  }
+
+  /**
+   * init()
+   * Loads links from localStorage, initialises the links array (or [] on null),
+   * calls _render(), and wires the Add button to addLink().
+   */
+  function init() {
+    var loaded = StorageManager.load(STORAGE_KEY);
+    links = Array.isArray(loaded) ? loaded : [];
+    _render();
+
+    var labelInput = document.getElementById('link-label-input');
+    var urlInput   = document.getElementById('link-url-input');
+    var form       = document.getElementById('links-form');
+    var addBtn     = document.getElementById('links-add-btn');
+
+    // Prevent default form submission and use addLink instead
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        addLink(
+          labelInput ? labelInput.value : '',
+          urlInput   ? urlInput.value   : ''
+        );
+      });
+    } else if (addBtn) {
+      // Fallback: wire button click directly
+      addBtn.addEventListener('click', function () {
+        addLink(
+          labelInput ? labelInput.value : '',
+          urlInput   ? urlInput.value   : ''
+        );
+      });
+    }
+
+    // Clear error state as the user types in either input
+    if (labelInput) {
+      labelInput.addEventListener('input', function () {
+        labelInput.removeAttribute('aria-invalid');
+        labelInput.classList.remove('input-error');
+        var errorMsg = document.getElementById('links-error');
+        if (errorMsg && !urlInput.classList.contains('input-error')) {
+          errorMsg.setAttribute('hidden', '');
+        }
+      });
+    }
+    if (urlInput) {
+      urlInput.addEventListener('input', function () {
+        urlInput.removeAttribute('aria-invalid');
+        urlInput.classList.remove('input-error');
+        var errorMsg = document.getElementById('links-error');
+        if (errorMsg && !labelInput.classList.contains('input-error')) {
+          errorMsg.setAttribute('hidden', '');
+        }
+      });
+    }
+  }
+
+  return {
+    init:         init,
+    _validateUrl: _validateUrl,
+    _persist:     _persist,
+    _render:      _render,
+    addLink:      addLink,
+    openLink:     openLink,
+    deleteLink:   deleteLink,
+    // Expose links array accessor for tests
+    _getLinks:    function () { return links; },
+    _setLinks:    function (l) { links = l; }
   };
 })();
 
@@ -799,4 +1122,5 @@ document.addEventListener('DOMContentLoaded', function () {
   GreetingWidget.init();
   FocusTimer.init();
   TodoList.init();
+  QuickLinks.init();
 });
