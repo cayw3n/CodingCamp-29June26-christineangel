@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Life Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Error banner: shown when localStorage operations fail -->
+  <div id="error-banner" role="alert" aria-live="assertive" aria-atomic="true" hidden>
+    <span id="error-banner-message"></span>
+    <button id="error-banner-close" aria-label="Dismiss error">✕</button>
+  </div>
+
+  <main class="dashboard-grid">
+
+    <!-- Widget 1: Greeting — live clock, date, and time-of-day greeting -->
+    <section id="greeting-widget" class="widget" aria-label="Greeting and current time">
+      <div id="greeting-text" class="greeting-text">Good Morning</div>
+      <div id="current-time" class="current-time" aria-live="polite" aria-atomic="true">--:-- --</div>
+      <div id="current-date" class="current-date">---</div>
+    </section>
+
+    <!-- Widget 2: Focus Timer — 25-minute countdown -->
+    <section id="timer-widget" class="widget" aria-label="Focus timer">
+      <h2 class="widget-title">Focus Timer</h2>
+      <div id="timer-display" class="timer-display" aria-live="polite" aria-atomic="true">25:00</div>
+      <div class="timer-controls">
+        <button id="timer-start" class="btn btn-primary" type="button">Start</button>
+        <button id="timer-stop"  class="btn btn-secondary" type="button">Stop</button>
+        <button id="timer-reset" class="btn btn-ghost" type="button">Reset</button>
+      </div>
+    </section>
+
+    <!-- Widget 3: To-Do List — add / edit / complete / delete tasks -->
+    <section id="todo-widget" class="widget" aria-label="To-do list">
+      <h2 class="widget-title">To-Do List</h2>
+      <form id="todo-form" class="todo-form" novalidate>
+        <label for="todo-input" class="sr-only">New task</label>
+        <input
+          id="todo-input"
+          type="text"
+          class="text-input"
+          placeholder="Add a task…"
+          maxlength="500"
+          autocomplete="off"
+          aria-required="true"
+        >
+        <button id="todo-add-btn" class="btn btn-primary" type="submit">Add</button>
+      </form>
+      <p id="todo-error" class="field-error" role="alert" aria-live="polite" hidden>
+        Task description cannot be empty.
+      </p>
+      <ul id="todo-list" class="todo-list" aria-label="Tasks" aria-live="polite"></ul>
+    </section>
+
+    <!-- Widget 4: Quick Links — bookmark buttons -->
+    <section id="links-widget" class="widget" aria-label="Quick links">
+      <h2 class="widget-title">Quick Links</h2>
+      <form id="links-form" class="links-form" novalidate>
+        <label for="link-label-input" class="sr-only">Link label</label>
+        <input
+          id="link-label-input"
+          type="text"
+          class="text-input"
+          placeholder="Label"
+          maxlength="50"
+          autocomplete="off"
+          aria-required="true"
+        >
+        <label for="link-url-input" class="sr-only">Link URL</label>
+        <input
+          id="link-url-input"
+          type="url"
+          class="text-input"
+          placeholder="https://example.com"
+          maxlength="2048"
+          autocomplete="off"
+          aria-required="true"
+        >
+        <button id="links-add-btn" class="btn btn-primary" type="submit">Add</button>
+      </form>
+      <p id="links-error" class="field-error" role="alert" aria-live="polite" hidden>
+        Please enter a valid label and https:// URL.
+      </p>
+      <div id="links-grid" class="links-grid" aria-label="Saved links" aria-live="polite">
+        <p id="links-empty" class="empty-state">No links added yet.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
